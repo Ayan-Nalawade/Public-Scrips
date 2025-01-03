@@ -16,7 +16,7 @@ fi
 # Install Essentials related packages
 if [[ "$choices" =~ "Essentials" || "$choices" =~ "2" ]]; then
     echo "Installing Essentials packages..."
-    sudo apt install -y htop curl wget nano neofetch
+    sudo apt install -y htop curl wget nano neofetch fish
 fi
 
 # Install Nvidia related packages
