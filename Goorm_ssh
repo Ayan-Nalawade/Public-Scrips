@@ -1,0 +1,19 @@
+#!/bin/bash
+
+# Check if token is provided as an argument
+if [ -z "$1" ]; then
+  echo "Usage: $0 <auth_token>"
+  exit 1
+fi
+
+# Get the auth token from the argument
+AUTH_TOKEN=$1
+
+# Run the commands with the provided token
+curl -sSL https://ngrok-agent.s3.amazonaws.com/ngrok.asc | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null && \
+echo "deb https://ngrok-agent.s3.amazonaws.com buster main" | sudo tee /etc/apt/sources.list.d/ngrok.list && \
+sudo apt update && \
+sudo apt install -y ngrok && \
+ngrok config add-authtoken $AUTH_TOKEN && \
+sudo passwd root && \
+ngrok tcp 22
