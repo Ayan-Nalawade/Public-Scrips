@@ -1,0 +1,54 @@
+#!/bin/bash
+
+# Check if NGROK_TOKEN is supplied
+if [ -z "$1" ]; then
+  echo "Usage: ./test.sh <NGROK_TOKEN>"
+  exit 1
+fi
+
+NGROK_TOKEN=$1
+
+# Create .ssh directory and generate SSH keys
+mkdir -p ~/.ssh/
+ssh-keygen -f ~/.ssh/id_rsa -P "" -q
+cp ~/.ssh/id_rsa.pub ~/.ssh/authorized_keys
+ls ~/.ssh
+
+# Install and start ssh-server
+sudo apt update -y
+sudo apt install -y openssh-server
+sudo service ssh status
+sudo service ssh start
+sudo service ssh status
+
+# Install ngrok
+curl -s https://ngrok-agent.s3.amazonaws.com/ngrok.asc | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null
+echo "deb https://ngrok-agent.s3.amazonaws.com buster main" | sudo tee /etc/apt/sources.list.d/ngrok.list
+sudo apt update -y
+sudo apt install -y ngrok
+
+# Reset terminal color
+echo -e "\033[0m"
+
+# Add Ngrok token to config
+ngrok config add-authtoken "$NGROK_TOKEN"
+
+# Create the private key output command
+sed '1d;$d' ~/.ssh/id_rsa | awk '
+  BEGIN {print "("}
+  {print "echo " $0}
+  BEGIN {print "echo -----BEGIN OPENSSH PRIVATE KEY-----"}
+  END {print "echo -----END OPENSSH PRIVATE KEY-----"}
+  END {print ") > ___KAGGLE_PRIVATE_SSH_KEY___"}
+' > ~/.ssh/cmd_storage
+
+# Display instructions for the user
+echo "!!!!!!!!    RUN THE BELOW CODE IN YOUR LOCAL TERMINAL    !!!!!!!!"
+cat ~/.ssh/cmd_storage
+
+# Start ngrok and provide SSH command
+ngrok tcp 22 --log=stdout | tee ./ngrok.log | \
+grep --line-buffered -oE 'tcp://[^:]*:[0-9]+' | \
+sed -u 's/tcp\:\/\//ssh \-i ___KAGGLE_PRIVATE_SSH_KEY___ root\@/' | \
+sed -u 's/\:/ \-p /' | \
+sed 's/$/ -o ServerAliveInterval=60/'
