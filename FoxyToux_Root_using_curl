@@ -3,7 +3,7 @@
 ROOTFS_DIR=$(pwd)
 export PATH=$PATH:~/.local/usr/bin
 max_retries=50
-timeout=1
+timeout=60  # Increased timeout to 60 seconds
 ARCH=$(uname -m)
 
 if [ "$ARCH" = "x86_64" ]; then
@@ -30,8 +30,14 @@ fi
 
 case $install_ubuntu in
   [yY][eE][sS])
-    curl --retry $max_retries --max-time $timeout --location -o /tmp/rootfs.tar.gz \
-      "http://cdimage.ubuntu.com/ubuntu-base/releases/20.04/release/ubuntu-base-20.04.4-base-${ARCH_ALT}.tar.gz"
+    retries=0
+    while [ $retries -lt $max_retries ]; do
+        curl --retry 1 --max-time $timeout --location -o /tmp/rootfs.tar.gz \
+          "http://cdimage.ubuntu.com/ubuntu-base/releases/20.04/release/ubuntu-base-20.04.4-base-${ARCH_ALT}.tar.gz" && break
+        retries=$((retries + 1))
+        echo "Download failed, retrying... Attempt $retries of $max_retries"
+        sleep $((2**retries))  # Exponential backoff (increasing sleep time between retries)
+    done
     tar -xf /tmp/rootfs.tar.gz -C $ROOTFS_DIR
     ;;
   *)
@@ -41,19 +47,12 @@ esac
 
 if [ ! -e $ROOTFS_DIR/.installed ]; then
   mkdir -p $ROOTFS_DIR/usr/local/bin
-  curl --retry $max_retries --max-time $timeout --location -o $ROOTFS_DIR/usr/local/bin/proot "https://raw.githubusercontent.com/foxytouxxx/freeroot/main/proot-${ARCH}"
-
-  while [ ! -s "$ROOTFS_DIR/usr/local/bin/proot" ]; do
-    rm -rf $ROOTFS_DIR/usr/local/bin/proot
-    curl --retry $max_retries --max-time $timeout --location -o $ROOTFS_DIR/usr/local/bin/proot "https://raw.githubusercontent.com/foxytouxxx/freeroot/main/proot-${ARCH}"
-
-    if [ -s "$ROOTFS_DIR/usr/local/bin/proot" ]; then
-      chmod 755 $ROOTFS_DIR/usr/local/bin/proot
-      break
-    fi
-
-    chmod 755 $ROOTFS_DIR/usr/local/bin/proot
-    sleep 1
+  retries=0
+  while [ $retries -lt $max_retries ]; do
+      curl --retry 1 --max-time $timeout --location -o $ROOTFS_DIR/usr/local/bin/proot "https://raw.githubusercontent.com/foxytouxxx/freeroot/main/proot-${ARCH}" && break
+      retries=$((retries + 1))
+      echo "Download failed, retrying... Attempt $retries of $max_retries"
+      sleep $((2**retries))  # Exponential backoff (increasing sleep time between retries)
   done
 
   chmod 755 $ROOTFS_DIR/usr/local/bin/proot
