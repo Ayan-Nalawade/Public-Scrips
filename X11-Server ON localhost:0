@@ -1,0 +1,52 @@
+#!/bin/bash
+
+# Update package list and install necessary packages for X11 forwarding
+sudo apt update && sudo apt install -y xauth xorg libfuse2 libxcb-cursor0 libxcb-xinerama0 libxkbcommon-x11-0 libqt6gui6 libqt6widgets6
+
+# Check and modify sshd_config for X11 Forwarding
+if sudo grep -q "X11Forwarding no" /etc/ssh/sshd_config; then
+    sudo sed -i 's/X11Forwarding no/X11Forwarding yes/' /etc/ssh/sshd_config
+elif ! sudo grep -q "X11Forwarding yes" /etc/ssh/sshd_config; then
+    echo "X11Forwarding yes" | sudo tee -a /etc/ssh/sshd_config
+fi
+
+if sudo grep -q "X11DisplayOffset" /etc/ssh/sshd_config; then
+    sudo sed -i 's/#X11DisplayOffset/X11DisplayOffset/' /etc/ssh/sshd_config
+else
+    echo "X11DisplayOffset 10" | sudo tee -a /etc/ssh/sshd_config
+fi
+
+if sudo grep -q "X11UseLocalhost" /etc/ssh/sshd_config; then
+    sudo sed -i 's/#X11UseLocalhost/X11UseLocalhost/' /etc/ssh/sshd_config
+else
+    echo "X11UseLocalhost yes" | sudo tee -a /etc/ssh/sshd_config
+fi
+
+# Restart SSH service to apply changes
+sudo systemctl restart ssh
+
+# Set up the display environment variable
+export DISPLAY=localhost:10.0
+echo $DISPLAY
+
+# Print final instructions
+echo "
+FINAL INSTRUCTIONS:
+1. Install VCXSRV on your LOCAL PC (https://vcxsrv.com/)
+2. Run XLaunch and choose the following:
+3. Select 'Multiple Windows'
+4. Start No Client
+5. Enable 'Disable Access Control'
+6. Click Finish (this will start the X server).
+
+NOW (considering you are using PuTTY)
+1. Open PuTTY.
+2. Enter the Host Name (or IP address) of the remote PC.
+3. In the left panel, navigate to: Connection → SSH → X11
+4. Check the box 'Enable X11 Forwarding'.
+5. In the X display location, enter: localhost:0
+6. Go back to Session, save the settings, and click Open.
+"
+
+# Prompt to exit
+read -p "Press enter to exit..."
